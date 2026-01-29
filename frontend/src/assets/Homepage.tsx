@@ -10,90 +10,105 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { WavyBackground } from "@/components/ui/wavy-background";
 import { useNavigate } from "react-router-dom";
+import VideoScrollHero from "@/components/VideoScrollHero";
 
 
 const isAuthenticated = () => !!localStorage.getItem('access_token');
 
 export default function Homepage() {
-
   const navigate = useNavigate();
-  
-  const navItems = [
-    {
-      name: "Acasa",
-      link: "/",
-    },
-    {
-      name: "Programare",
-      link: "/programare",
-    },
-    {
-      name: "Despre noi",
-      link: "/contact",
-    },
-  ];
- 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  const [isDesktop, setIsDesktop] = useState(true);
 
+  useEffect(() => {
+    function handleResize() {
+      setIsDesktop(window.innerWidth > 768);
+    }
+    
+    window.addEventListener("resize", handleResize);
+    
+    handleResize();
+    
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const navItems = [
+    { name: "Acasa", link: "/" },
+    { name: "Programare", link: "/programare" },
+    { name: "Despre noi", link: "/contact" },
+  ];
 
   return (
     <>
-      <Navbar>
-        <NavBody>
-          <NavbarLogo />
-          <NavItems items={navItems} />
-          <div className="flex items-center gap-4">
-            {isAuthenticated() ? <NavbarButton variant="secondary" onClick={() => navigate('/profile')}></NavbarButton> : <NavbarButton variant="secondary" onClick={() => navigate('/login')}>Login</NavbarButton>}
-            <NavbarButton variant="primary" onClick={() => navigate('/profile')}>Administrare</NavbarButton>
-          </div>
-        </NavBody>
- 
-        <MobileNav>
-          <MobileNavHeader>
+      {/* Make sure Navbar has z-50 to stay on top of the video */}
+      <div className="relative z-50"> 
+        <Navbar>
+          <NavBody>
             <NavbarLogo />
-            <MobileNavToggle
-              isOpen={isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            />
-          </MobileNavHeader>
- 
-          <MobileNavMenu
-            isOpen={isMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)}
-          >
-            {navItems.map((item, idx) => (
-              <a
-                key={`mobile-link-${idx}`}
-                href={item.link}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="relative text-neutral-600 dark:text-neutral-300"
-              >
-                <span className="block">{item.name}</span>
-              </a>
-            ))}
-            <div className="flex w-full flex-col gap-4">
-              <NavbarButton
-                onClick={() => setIsMobileMenuOpen(false)}
-                variant="primary"
-                className="w-full"
-              >
-                Book a call
-              </NavbarButton>
+            <NavItems items={navItems} />
+            <div className="flex items-center gap-4">
+              {isAuthenticated() ? (
+                <NavbarButton variant="secondary" onClick={() => navigate('/profile')}></NavbarButton>
+              ) : (
+                <NavbarButton variant="secondary" onClick={() => navigate('/login')}>Login</NavbarButton>
+              )}
+              <NavbarButton variant="primary" onClick={() => navigate('/profile')}>Administrare</NavbarButton>
             </div>
-          </MobileNavMenu>
-        </MobileNav>
-      </Navbar>
-      <WavyBackground className = "max-w-4x1 mx-autp pb-40">
-        <p className="text-2xl md:text-4xl lg:text-7xl text-white font-bold inter-var text-center">
-          LJK Transport
-        </p>
-        <p className="text-base md:text-lg mt-4 text-white font-normal inter-var text-center">
-        Transportul aici este insane. Il livram azi si ajunge ieri.
-        </p>
-      </WavyBackground>
+          </NavBody>
+  
+          <MobileNav>
+            <MobileNavHeader>
+              <NavbarLogo />
+              <MobileNavToggle
+                isOpen={isMobileMenuOpen}
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              />
+            </MobileNavHeader>
+  
+            <MobileNavMenu
+              isOpen={isMobileMenuOpen}
+              onClose={() => setIsMobileMenuOpen(false)}
+            >
+              {navItems.map((item, idx) => (
+                <a
+                  key={`mobile-link-${idx}`}
+                  href={item.link}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="relative text-neutral-600 dark:text-neutral-300"
+                >
+                  <span className="block">{item.name}</span>
+                </a>
+              ))}
+              <div className="flex w-full flex-col gap-4">
+                <NavbarButton onClick={() => setIsMobileMenuOpen(false)} variant="primary" className="w-full">
+                  Book a call
+                </NavbarButton>
+              </div>
+            </MobileNavMenu>
+          </MobileNav>
+        </Navbar>
+      </div>
+
+      {/* --- CONDITIONAL RENDERING --- */}
+      {isDesktop ? (
+        // Render heavy video scroller ONLY on desktop
+        <VideoScrollHero />
+      ) : (
+        // Render lightweight WavyBackground ONLY on mobile
+        <WavyBackground className="max-w-4x1 mx-auto pb-40">
+          <p className="text-2xl md:text-4xl lg:text-7xl text-white font-bold inter-var text-center">
+            LJK Transport
+          </p>
+          <p className="text-base md:text-lg mt-4 text-white font-normal inter-var text-center">
+            Transportul aici este insane. Il livram azi si ajunge ieri.
+          </p>
+        </WavyBackground>
+      )}
+
       <DummyContent />
     </>
   );

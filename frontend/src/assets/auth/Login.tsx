@@ -6,6 +6,8 @@ import { IconBrandGoogle, IconArrowBarLeft } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthAPI from "../../lib/auth/AuthApi";
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -20,6 +22,11 @@ export default function Login() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError("");
+  };
+
+  const handlePhoneChange = (value: string | undefined) => {
+    setFormData((prev) => ({ ...prev, phone_number: value || "" }));
     setError("");
   };
 
@@ -39,8 +46,8 @@ export default function Login() {
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
-        err.response?.data?.non_field_errors?.[0] ||
-        "Login failed. Please try again."
+          err.response?.data?.non_field_errors?.[0] ||
+          "Login failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -48,37 +55,50 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-950">
-      <CardSpotlight className="h-130 w-150">
-        <div className="shadow-input mx-auto w-full max-w-md rounded-none p-4 md:rounded-2xl md:p-8 z-20 relative">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-950 p-4">
+      <CardSpotlight className="w-full max-w-md">
+        <div className="shadow-input mx-auto w-full rounded-none p-4 md:rounded-2xl md:p-8 z-20 relative bg-white/5 dark:bg-transparent">
           <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-200">
             Login
           </h2>
           <div className="flex items-center gap-3">
-            <span onClick={() => navigate('/')}><IconArrowBarLeft className="h-4 w-4 text-neutral-800 dark:text-neutral-300 cursor-pointer" /></span>
+            <span onClick={() => navigate("/")}>
+              <IconArrowBarLeft className="h-4 w-4 text-neutral-800 dark:text-neutral-300 cursor-pointer" />
+            </span>
             <p className="mt-2 max-w-sm text-sm text-neutral-600 dark:text-neutral-300 mb-2">
-              Daca nu aveti cont, inregistrati unul <span className="underline cursor-pointer" onClick={() => navigate('/register')}>aici</span>.
+              Daca nu aveti cont, inregistrati unul{" "}
+              <span
+                className="underline cursor-pointer hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
+                onClick={() => navigate("/register")}
+              >
+                aici
+              </span>
+              .
             </p>
           </div>
 
-
           <form className="my-8 z-20" onSubmit={handleSubmit}>
             {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-300">
+              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 border border-red-200 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300">
                 {error}
               </div>
             )}
 
             <LabelInputContainer className="mb-4">
               <Label htmlFor="phone_number">Phone number</Label>
-              <Input
-                id="phone_number"
-                name="phone_number"
-                placeholder="+40 000 - 000 - 0000"
-                type="tel"
+              <PhoneInput
+                international
+                defaultCountry="RO"
                 value={formData.phone_number}
-                onChange={handleChange}
-                required
+                onChange={handlePhoneChange}
+                inputComponent={Input}
+                className={cn(
+                  "flex gap-2 items-center h-10 w-full",
+                  "[&_.PhoneInputCountry]:mr-0 [&_.PhoneInputCountry]:flex [&_.PhoneInputCountry]:items-center [&_.PhoneInputCountry]:justify-center",
+                  "[&_.PhoneInputCountrySelect]:bg-transparent",
+                  "dark:[&_select]:bg-zinc-900 dark:[&_option]:text-neutral-900 dark:[&_option]:bg-white",
+                  "[&_.group\/input]:w-full"
+                )}
               />
             </LabelInputContainer>
 

@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const api_base_url = 'http://localhost:8000/api';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: api_base_url,
 });
 
 api.interceptors.request.use((config) => {
@@ -25,11 +25,13 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_BASE_URL}/token/refresh/`, {
+          const response = await axios.post(`${api_base_url}/auth/refresh/`, {
             refresh: refreshToken,
           });
           const newAccessToken = response.data.access;
+          
           localStorage.setItem('access_token', newAccessToken);
+          
           originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         } catch (refreshError) {
@@ -42,15 +44,9 @@ api.interceptors.response.use(
   }
 );
 
-
-
 const AuthAPI = {
-  /**
-   * Standard username/password login
-   */
-  login: async (credentials) => {
-    const res = await api.post('/api/auth/login/', credentials);
-    // Store tokens
+  login: async (credentials: any) => {
+    const res = await api.post('/auth/login/', credentials);
     if (res.data.access) {
       localStorage.setItem('access_token', res.data.access);
     }
@@ -60,20 +56,17 @@ const AuthAPI = {
     return res.data;
   },
 
-  /**
-   * Register new user
-   */
-  register: async (userData) => {
-    const res = await api.post('/api/auth/registration/', {
+  register: async (userData: any) => {
+    console.log("reached register");
+    const res = await api.post('/auth/registration/', {
       phone_number: userData.phone_number,
       email: userData.email,
       password1: userData.password,
-      password2: userData.password, // dj-rest-auth requires password confirmation
+      password2: userData.password,
       first_name: userData.first_name,
       last_name: userData.last_name,
     });
 
-    // Store tokens if auto-login is enabled
     if (res.data.access) {
       localStorage.setItem('access_token', res.data.access);
     }
@@ -83,31 +76,33 @@ const AuthAPI = {
     return res.data;
   },
 
-  /**
-   * Logout user
-   */
   logout: async () => {
+    console.log("logout called");
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      return;
+    }
     try {
-      await api.post('/api/auth/logout/');
+      await api.post('/auth/logout/', {
+        refresh: refreshToken,
+      });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('logout error:', error);
     } finally {
-      // Clear tokens regardless of API response
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
     }
   },
 
-  /**
-   * Refresh access token
-   */
   refreshToken: async () => {
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    const res = await api.post('/api/auth/token/refresh/', {
+    const res = await api.post('/auth/refresh/', { 
       refresh: refreshToken,
     });
 
@@ -117,85 +112,24 @@ const AuthAPI = {
     return res.data;
   },
 
-  /**
-   * Get current user profile
-   */
   getProfile: async () => {
-    const res = await api.get('/api/auth/user/');
+    const res = await api.get('/auth/user/');
     return res.data;
   },
 
-  /**
-   * Update current user profile
-   */
-  updateProfile: async (userData) => {
-    const res = await api.patch('/api/auth/user/', userData);
+  updateProfile: async (userData: any) => {
+    const res = await api.patch('/auth/user/', userData);
     return res.data;
   },
 
-  /**
-   * Change password
-   */
-  changePassword: async (passwords) => {
-    const res = await api.post('/api/auth/password/change/', {
+  changePassword: async (passwords: any) => {
+    const res = await api.post('/auth/password/change/', {
       old_password: passwords.oldPassword,
       new_password1: passwords.newPassword,
       new_password2: passwords.newPassword,
     });
     return res.data;
   },
-
-  /**
-   * Request password reset
-   */
-  requestPasswordReset: async (email) => {
-    const res = await api.post('/api/auth/password/reset/', { email });
-    return res.data;
-  },
-
-  /**
-   * Confirm password reset
-   */
-  confirmPasswordReset: async (uid, token, passwords) => {
-    const res = await api.post('/api/auth/password/reset/confirm/', {
-      uid,
-      token,
-      new_password1: passwords.newPassword,
-      new_password2: passwords.newPassword,
-    });
-    return res.data;
-  },
-
-  /**
-   * Initiate Google OAuth login
-   * This redirects to Google's OAuth page
-   */
-  loginWithGoogle: () => {
-    const clientId = 'your-google-client-id';
-    const redirectUri = `${window.location.origin}/auth/google/callback`;
-    const scope = 'profile email';
-    const responseType = 'code';
-
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=${responseType}`;
-
-    window.location.href = authUrl;
-  },
-
-  /**
-   * Complete Google OAuth login
-   * Call this in your callback component
-   */
-  completeGoogleLogin: async (code) => {
-    const res = await api.post('/api/auth/google/', { code });
-
-    if (res.data.access) {
-      localStorage.setItem('access_token', res.data.access);
-    }
-    if (res.data.refresh) {
-      localStorage.setItem('refresh_token', res.data.refresh);
-    }
-    return res.data;
-  },
 };
 
-export default AuthAPI
+export default AuthAPI;

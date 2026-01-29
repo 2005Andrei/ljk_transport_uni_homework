@@ -11,9 +11,22 @@ import {
   IconCalendar,
   IconPackage,
   IconCurrencyEuro,
+  IconCalendarPlus
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import { HoverEffect } from "@/components/ui/card-hover-effect";
+import { useNavigate } from "react-router-dom";
+import AuthAPI from "@/lib/auth/AuthApi";
+import { transportService } from "@/lib/api";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 
 interface Shipment {
   id: number;
@@ -33,41 +46,75 @@ export default function Profile() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [open, setOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
+  const navigate = useNavigate();
+
+  const handleLogout = async (e: any) => {
+    e.preventDefault();
+
+    try {
+      await AuthAPI.logout();
+    } catch (err) {
+      console.log("Lowkey screwed up");
+    } finally {
+      localStorage.clear();
+      navigate("/", { replace: true });
+    }
+  };
+
+ 
   useEffect(() => {
     setIsMounted(true);
-    
-    const storedUser = localStorage.getItem("user_data");
-    if (storedUser) {
-      try {
-        setUserData(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse user_data", e);
-      }
-    }
 
-    const history = localStorage.getItem("transport_requests");
-    if (history) {
+    const fetchData = async () => {
       try {
-        setShipments(JSON.parse(history));
-        console.log(JSON.parse(history));
+        const profileData = await AuthAPI.getProfile();
+        setUserData(profileData);
       } catch (e) {
-        console.error("Failed to parse transport_history", e);
+        console.error("Failed to load profile:", e);
       }
-    }
+
+
+      try {
+        const transportList = await transportService.list();
+
+        console.log(transportList);
+
+        const formattedShipments: Shipment[] = transportList.map((item: any) => ({
+          id: item.id,
+          leaving_address: item.pickup, 
+          destination: item.destination,
+          cost: parseFloat(item.cost),
+          content: item.content || "Standard Cargo",
+          details: {
+            distance_km: item.distance, 
+            is_local: item.pickup.split(",").pop()?.trim() === item.destination.split(",").pop()?.trim(),
+            date: item.created_at,
+          },
+        }));
+
+        setShipments(formattedShipments);
+      } catch (error) {
+        console.error("Error fetching transports:", error);
+      }
+    };
+
+    fetchData();
   }, []);
+
+
 
   const links = [
     { label: "Dashboard", href: "/fuckall", icon: <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
     { label: "Profile", href: "/fuckass", icon: <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
+    { label: "Programare", href: "/programare", icon: <IconCalendarPlus className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
     { label: "Settings", href: "#settings", icon: <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
     {
       label: "Logout",
       href: "/logout",
       icon: <IconArrowLeft className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" />,
-      onClick: () => {
-        if (typeof window !== 'undefined') localStorage.clear();
-      },
+      //onClick: handleLogout,
     },
   ];
 
@@ -92,7 +139,7 @@ export default function Profile() {
         <span className="flex items-center gap-6 pt-2 border-t border-neutral-200 dark:border-neutral-800">
           <span className="flex items-center gap-2">
             <IconTruck className="h-4 w-4 text-neutral-500" />
-            <span>{s.details.distance_km.toFixed(0)} km</span>
+            <span>{s.details.distance_km} km</span>
           </span>
           <span className="flex items-center gap-2">
             <IconPackage className="h-4 w-4 text-neutral-500" />
@@ -112,6 +159,8 @@ export default function Profile() {
       </span>
     ),
     link: `#shipment-${s.id}`,
+    id: s.id,
+    onClick: () => setSelectedShipment(s),
   }));
 
   if (!isMounted) {
@@ -146,12 +195,22 @@ export default function Profile() {
         </SidebarBody>
       </Sidebar>
 
-      <Dashboard projects={projects} hasShipments={shipments.length > 0} />
+      <Dashboard projects={projects} hasShipments={shipments.length > 0} onSelectShipment={(id) => {
+        const found = shipments.find(s => s.id === id);
+        if(found) setSelectedShipment(found);
+      }}/>
+
+      <ShipmentSheet 
+        shipment={selectedShipment} 
+        isOpen={!!selectedShipment} 
+        onClose={(open) => !open && setSelectedShipment(null)} 
+      />
+
     </div>
   );
 }
 
-const Dashboard = ({ projects, hasShipments }: { projects: any[]; hasShipments: boolean }) => {
+const Dashboard = ({ projects, hasShipments, onSelectShipment }: { projects: any[]; hasShipments: boolean, onSelectShipment: (id: number) => void }) => {
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex h-full flex-col overflow-y-auto rounded-tl-2xl bg-white p-8 md:p-12 dark:bg-neutral-900">
@@ -166,7 +225,14 @@ const Dashboard = ({ projects, hasShipments }: { projects: any[]; hasShipments: 
 
         <div className="w-full">
           {hasShipments ? (
-            <div className="mx-auto max-w-7xl">
+            <div className="mx-auto max-w-7xl" onClick={(e) => {
+              const target = (e.target as HTMLElement).closest('a');
+              if (target && target.getAttribute('href')?.startsWith('#shipment-')) {
+                 e.preventDefault(); // Stop the hash navigation
+                 const id = parseInt(target.getAttribute('href')?.split('-')[1] || '0');
+                 onSelectShipment(id);
+              }
+            }}>
               <HoverEffect items={projects} />
             </div>
           ) : (
@@ -188,7 +254,7 @@ export const Logo = () => (
   <a href="#" className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black">
     <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
     <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-medium whitespace-pre text-black dark:text-white">
-      TransTrack
+    LJK Transport
     </motion.span>
   </a>
 );
@@ -198,3 +264,99 @@ export const LogoIcon = () => (
     <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
   </a>
 );
+
+
+const ShipmentSheet = ({ 
+  shipment, 
+  isOpen, 
+  onClose 
+}: { 
+  shipment: Shipment | null, 
+  isOpen: boolean, 
+  onClose: (open: boolean) => void 
+}) => {
+  if (!shipment) return null;
+
+  const isDelivered = new Date(shipment.details.date) < new Date();
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="flex flex-col h-full w-full sm:max-w-xl bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 p-0 shadow-2xl">
+        
+        <SheetHeader className="p-6 mb-0 mt-4 border-b border-zinc-100 dark:border-zinc-800">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-2xl font-bold flex items-center gap-2 text-black dark:text-white">
+              <IconPackage className="h-6 w-6 text-emerald-500" />
+              Shipment #{shipment.id}
+            </SheetTitle>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+              isDelivered 
+                ? "mt-7 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+            }`}>
+              {isDelivered ? "Delivered" : "In Transit"}
+            </span>
+          </div>
+          <SheetDescription>
+            Created on {new Date(shipment.details.date).toLocaleDateString("en-GB", { 
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            })}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
+          <div className="relative border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 ml-3 space-y-10 pb-2">
+            
+            <div className="relative pl-8">
+              <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-emerald-500 bg-white dark:bg-zinc-900" />
+              <h4 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider">Pickup</h4>
+              <p className="text-lg font-medium mt-1 text-black dark:text-white">{shipment.leaving_address}</p>
+            </div>
+
+            <div className="relative pl-8">
+              <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
+              <h4 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider">Destination</h4>
+              <p className="text-lg font-medium mt-1 text-black dark:text-white">{shipment.destination}</p>
+            </div>
+          </div>
+
+          <Separator className="bg-zinc-200 dark:bg-zinc-800" />
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                <IconTruck className="h-4 w-4" /> Distance
+              </div>
+              <p className="text-xl font-semibold text-black dark:text-white">{shipment.details.distance_km} km</p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                <IconCurrencyEuro className="h-4 w-4" /> Total Cost
+              </div>
+              <p className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">
+                {(shipment.cost / 4).toLocaleString()} RON
+              </p>
+            </div>
+
+            <div className="space-y-1 col-span-2">
+                <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                <IconPackage className="h-4 w-4" /> Cargo Content
+              </div>
+              <p className="text-md font-medium text-black dark:text-white">{shipment.content}</p>
+            </div>
+          </div>
+        </div> 
+
+
+        <SheetFooter className="p-6 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+          <div className="w-full bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg text-sm text-zinc-500 flex flex-col gap-1">
+            <p className="font-semibold text-black dark:text-white">Need help with this shipment?</p>
+            <p>Contact support with ID <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">#{shipment.id}</span></p>
+          </div>
+        </SheetFooter>
+
+      </SheetContent>
+    </Sheet>
+  )
+};

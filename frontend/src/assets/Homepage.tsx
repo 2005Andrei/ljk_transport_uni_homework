@@ -39,12 +39,10 @@ export default function Homepage() {
   const navItems = [
     { name: "Acasa", link: "/" },
     { name: "Programare", link: "/programare" },
-    { name: "Despre noi", link: "/contact" },
   ];
 
   return (
     <>
-      {/* Make sure Navbar has z-50 to stay on top of the video */}
       <div className="relative z-50"> 
         <Navbar>
           <NavBody>
@@ -52,11 +50,10 @@ export default function Homepage() {
             <NavItems items={navItems} />
             <div className="flex items-center gap-4">
               {isAuthenticated() ? (
-                <NavbarButton variant="secondary" onClick={() => navigate('/profile')}></NavbarButton>
+                <NavbarButton variant="primary" onClick={() => navigate('/profile')}>Administrare</NavbarButton>
               ) : (
-                <NavbarButton variant="secondary" onClick={() => navigate('/login')}>Login</NavbarButton>
+                <NavbarButton variant="primary" onClick={() => navigate('/login')}>Login</NavbarButton>
               )}
-              <NavbarButton variant="primary" onClick={() => navigate('/profile')}>Administrare</NavbarButton>
             </div>
           </NavBody>
   
@@ -85,7 +82,7 @@ export default function Homepage() {
               ))}
               <div className="flex w-full flex-col gap-4">
                 <NavbarButton onClick={() => setIsMobileMenuOpen(false)} variant="primary" className="w-full">
-                  Book a call
+                Programare
                 </NavbarButton>
               </div>
             </MobileNavMenu>
@@ -93,12 +90,9 @@ export default function Homepage() {
         </Navbar>
       </div>
 
-      {/* --- CONDITIONAL RENDERING --- */}
       {isDesktop ? (
-        // Render heavy video scroller ONLY on desktop
         <VideoScrollHero />
       ) : (
-        // Render lightweight WavyBackground ONLY on mobile
         <WavyBackground className="max-w-4x1 mx-auto pb-40">
           <p className="text-2xl md:text-4xl lg:text-7xl text-white font-bold inter-var text-center">
             LJK Transport

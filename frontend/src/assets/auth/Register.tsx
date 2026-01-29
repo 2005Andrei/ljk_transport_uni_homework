@@ -6,7 +6,8 @@ import { IconBrandGoogle } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AuthAPI from "../../lib/auth/AuthApi";
-
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -25,7 +26,12 @@ export default function Register() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setError(""); // Clear error on input
+    setError("");
+  };
+
+  const handlePhoneChange = (value: string | undefined) => {
+    setFormData((prev) => ({ ...prev, phone_number: value || "" }));
+    setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -33,7 +39,6 @@ export default function Register() {
     setLoading(true);
     setError("");
 
-    // Check password match
     if (formData.password !== formData.password_confirm) {
       setError("Passwords do not match");
       setLoading(false);
@@ -42,11 +47,9 @@ export default function Register() {
 
     try {
       const { access, refresh, user } = await AuthAPI.register(formData);
-
       localStorage.setItem("access_token", access);
       localStorage.setItem("refresh_token", refresh);
       localStorage.setItem("user_data", JSON.stringify(user));
-
       navigate("/profile", { replace: true });
     } catch (err: any) {
       setError(
@@ -62,29 +65,30 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-950">
-      <CardSpotlight className="h-196 w-150">
-        <div className="shadow-input mx-auto w-full max-w-md rounded-none p-4 md:rounded-2xl md:p-8 z-20 relative">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-zinc-950 p-4">
+      <CardSpotlight className="w-full max-w-3xl">
+        <div className="shadow-input mx-auto w-full rounded-none p-4 md:rounded-2xl md:p-8 z-20 relative bg-white/5 dark:bg-transparent">
           <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-200">
             Register
           </h2>
           <p className="mt-2 max-w-sm text-sm text-neutral-600 dark:text-neutral-300">
             Aveti deja cont?{" "}
-            <a href="/login" className="underline">
+            <a
+              href="/login"
+              className="underline hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
+            >
               Conectati-va aici.
             </a>
-            .
           </p>
 
           <form className="my-8 z-20" onSubmit={handleSubmit}>
             {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/30 dark:text-red-300">
+              <div className="mb-6 rounded-md bg-red-50 p-3 text-sm text-red-800 border border-red-200 dark:border-red-900 dark:bg-red-900/30 dark:text-red-300">
                 {error}
               </div>
             )}
 
-            {/* First & Last Name Row */}
-            <div className="mb-4 flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <LabelInputContainer>
                 <Label htmlFor="first_name">First name</Label>
                 <Input
@@ -96,6 +100,7 @@ export default function Register() {
                   onChange={handleChange}
                 />
               </LabelInputContainer>
+
               <LabelInputContainer>
                 <Label htmlFor="last_name">Last name</Label>
                 <Input
@@ -107,92 +112,92 @@ export default function Register() {
                   onChange={handleChange}
                 />
               </LabelInputContainer>
+
+              <LabelInputContainer>
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  placeholder="projectmayhem@fc.com"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+              </LabelInputContainer>
+
+              <LabelInputContainer>
+                <Label htmlFor="phone_number">Phone number *</Label>
+                <PhoneInput
+                  international
+                  defaultCountry="RO"
+                  value={formData.phone_number}
+                  onChange={handlePhoneChange}
+                  inputComponent={Input}
+                  className={cn(
+                    "flex gap-2 items-center h-10 w-full",
+                    "[&_.PhoneInputCountry]:mr-0 [&_.PhoneInputCountry]:flex [&_.PhoneInputCountry]:items-center [&_.PhoneInputCountry]:justify-center",
+                    "[&_.PhoneInputCountrySelect]:bg-transparent",
+                    "[&_.group\/input]:w-full",
+                    "dark:[&_select]:bg-zinc-900 dark:[&_option]:text-neutral-900 dark:[&_option]:bg-white" // for the dropdown 
+                  )}
+                />
+              </LabelInputContainer>
+
+              <LabelInputContainer>
+                <Label htmlFor="password">Password *</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  placeholder="••••••••"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  minLength={8}
+                />
+              </LabelInputContainer>
+
+              <LabelInputContainer>
+                <Label htmlFor="password_confirm">Confirm Password *</Label>
+                <Input
+                  id="password_confirm"
+                  name="password_confirm"
+                  placeholder="••••••••"
+                  type="password"
+                  value={formData.password_confirm}
+                  onChange={handleChange}
+                  required
+                />
+              </LabelInputContainer>
             </div>
 
-            {/* Phone Number */}
-            <LabelInputContainer className="mb-4">
-              <Label htmlFor="phone_number">Phone number *</Label>
-              <Input
-                id="phone_number"
-                name="phone_number"
-                placeholder="+40 000 - 000 - 0000"
-                type="tel"
-                value={formData.phone_number}
-                onChange={handleChange}
-                required
-              />
-            </LabelInputContainer>
-
-            {/* Email */}
-            <LabelInputContainer className="mb-4">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                name="email"
-                placeholder="projectmayhem@fc.com"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </LabelInputContainer>
-
-            {/* Password */}
-            <LabelInputContainer className="mb-4">
-              <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                name="password"
-                placeholder="••••••••"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                minLength={8}
-              />
-            </LabelInputContainer>
-
-            {/* Confirm Password */}
-            <LabelInputContainer className="mb-8">
-              <Label htmlFor="password_confirm">Confirm Password *</Label>
-              <Input
-                id="password_confirm"
-                name="password_confirm"
-                placeholder="••••••••"
-                type="password"
-                value={formData.password_confirm}
-                onChange={handleChange}
-                required
-              />
-            </LabelInputContainer>
-
-            {/* Submit Button */}
-            <button
-              className="group/btn relative block h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] dark:bg-zinc-800 dark:from-zinc-900 dark:to-zinc-900 dark:shadow-[0px_1px_0px_0px_#27272a_inset,0px_-1px_0px_0px_#27272a_inset] disabled:opacity-50"
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? "Registering..." : "Sign up"} &rarr;
-              <BottomGradient />
-            </button>
-
-            <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
-
-            {/* Google Button */}
-            <div className="flex flex-col space-y-4">
+            <div className="mt-8">
               <button
-                className="group/btn shadow-input relative flex h-10 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-4 font-medium text-black dark:bg-zinc-900 dark:shadow-[0px_0px_1px_1px_#262626]"
-                type="button"
-                onClick={() => {
-                  // TODO: Implement Google OAuth
-                  console.log("Google signup clicked");
-                }}
+                className="group/btn relative block h-10 w-full rounded-md bg-gradient-to-br from-black to-neutral-600 font-medium text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] dark:bg-zinc-800 dark:from-zinc-900 dark:to-zinc-900 dark:shadow-[0px_1px_0px_0px_#27272a_inset,0px_-1px_0px_0px_#27272a_inset] disabled:opacity-50"
+                type="submit"
+                disabled={loading}
               >
-                <IconBrandGoogle className="h-4 w-4 text-neutral-800 dark:text-neutral-300" />
-                <span className="text-sm text-neutral-700 dark:text-neutral-300">
-                  Google
-                </span>
+                {loading ? "Registering..." : "Sign up"} &rarr;
                 <BottomGradient />
               </button>
+
+              <div className="my-6 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
+
+              <div className="flex flex-col space-y-4">
+                <button
+                  className="group/btn shadow-input relative flex h-10 w-full items-center justify-center space-x-2 rounded-md bg-gray-50 px-4 font-medium text-black dark:bg-zinc-900 dark:shadow-[0px_0px_1px_1px_#262626]"
+                  type="button"
+                  onClick={() => {
+                    console.log("Google signup clicked");
+                  }}
+                >
+                  <IconBrandGoogle className="h-4 w-4 text-neutral-800 dark:text-neutral-300" />
+                  <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                    Sign up with Google
+                  </span>
+                  <BottomGradient />
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -200,7 +205,6 @@ export default function Register() {
     </div>
   );
 }
-
 
 const BottomGradient = () => {
   return (
@@ -210,7 +214,7 @@ const BottomGradient = () => {
     </>
   );
 };
- 
+
 const LabelInputContainer = ({
   children,
   className,

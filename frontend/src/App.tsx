@@ -7,6 +7,7 @@ import Register from './assets/auth/Register';
 import Profile from './assets/auth/Profile';
 import UnderConstruction from './assets/common/underConstruction';
 import TransportForm from './assets/common/TransportForm';
+import UserProfile from './assets/common/UserProfile';
 
 
 
@@ -17,6 +18,7 @@ function App() {
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/logout" element={<Logout />} />
+        <Route path="/user" element={<UserProfile/>} />
         <Route path="/register" element={<Register />} />
         <Route path="/programare" element={<TransportForm />} />
         <Route path="/contact" element={<UnderConstruction />} />

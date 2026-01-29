@@ -106,10 +106,10 @@ export default function Profile() {
 
 
   const links = [
-    { label: "Dashboard", href: "/fuckall", icon: <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
-    { label: "Profile", href: "/fuckass", icon: <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
+    { label: "Dashboard", href: "/profile", icon: <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
+    { label: "Profile", href: "/user", icon: <IconUserBolt className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
     { label: "Programare", href: "/programare", icon: <IconCalendarPlus className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
-    { label: "Settings", href: "#settings", icon: <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
+    //{ label: "Settings", href: "#settings", icon: <IconSettings className="h-5 w-5 shrink-0 text-neutral-700 dark:text-neutral-200" /> },
     {
       label: "Logout",
       href: "/logout",
@@ -294,7 +294,7 @@ const ShipmentSheet = ({
                 ? "mt-7 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
                 : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
             }`}>
-              {isDelivered ? "Delivered" : "In Transit"}
+              {isDelivered ? "In Transit" : "Delivered"}
             </span>
           </div>
           <SheetDescription>

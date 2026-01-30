@@ -21,8 +21,8 @@ SECRET_KEY = "django-insecure-zatakwq1kh+&(af44&&)txbk351=0b^0pea4tsr=x$&##03dg0
 DEBUG = True
 
 CORS_ALLOW_ALL_ORIGINS = True
-
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+CORS_ALLOW_CREDENTIALS = True
+ALLOWED_HOSTS = ['*']
 
 # Custom User model
 AUTH_USER_MODEL = "api.User"
@@ -111,12 +111,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ------------------------------------------------------------------
 # django-cors-headers
 # ------------------------------------------------------------------
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # Vite default
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",   # React default (if I ever use it)
-    "http://127.0.0.1:8000",
-]
+#CORS_ALLOWED_ORIGINS = [
+#    "http://localhost:5173",   # Vite default
+#    "http://127.0.0.1:5173",
+#    "http://localhost:3000",   # React default (if I ever use it)
+#    "http://127.0.0.1:8000",
+#]
 
 # Optional: allow credentials (cookies, Authorization header) – needed for JWT with httpOnly cookies
 CORS_ALLOW_CREDENTIALS = True

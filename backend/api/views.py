@@ -65,6 +65,7 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def get_user(request):
     serializer = UserSerializer(request.user)
+    print(f"User data: {serializer.data}")
     return Response(serializer.data)
 
 @api_view(['POST'])
@@ -74,15 +75,11 @@ def create_transport(request):
     print(f"Data: {request.data}\n")
     serializer = TransportSerializer(data=request.data)
 
-    
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
 
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
@@ -124,7 +121,10 @@ def delete_transport(request, pk):
 @permission_classes([IsAuthenticated])
 def list_transports(request):
     user = request.user
-    transports = Transport.objects.filter(phone_number=user.phone_number).order_by('-created_at')
+    if user.is_staff:
+        transports = Transport.objects.all()
+    else:
+        transports = Transport.objects.filter(phone_number=user.phone_number).order_by('-created_at')
     serializer = TransportSerializer(transports, many=True)
     return Response(serializer.data)
 

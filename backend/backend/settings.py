@@ -118,8 +118,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 #    "http://127.0.0.1:8000",
 #]
 
-# Optional: allow credentials (cookies, Authorization header) – needed for JWT with httpOnly cookies
-CORS_ALLOW_CREDENTIALS = True
 
 # ------------------------------------------------------------------
 # Django REST Framework + SimpleJWT

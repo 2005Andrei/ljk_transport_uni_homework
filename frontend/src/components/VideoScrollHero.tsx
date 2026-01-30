@@ -3,7 +3,10 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import carVideo from "@/components/resources/car-video.mp4"
+import carVideo from "@/components/resources/car-video.mp4";
+import { LayoutTextFlip } from "@/components/ui/layout-text-flip";
+import { motion } from "motion/react";
+import { TypewriterEffectSmooth } from "@/components/ui/typewriter-effect";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -60,6 +63,26 @@ export default function VideoScrollHero() {
 
   }, { scope: container });
 
+
+  const words = [
+      {
+        text: "Transportati",
+      },
+      {
+        text: "cu",
+      },
+      {
+        text: "noi",
+      },
+      {
+        text: "la",
+      },
+      {
+        text: "LJK",
+        className: "text-emerald-500 dark:text-emerald-500",
+      },
+    ];
+
   return (
     <div ref={container} className="relative h-screen w-full overflow-hidden bg-black">
       
@@ -76,9 +99,7 @@ export default function VideoScrollHero() {
       </video>
 
       <div className="main-title absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-        <h1 className="text-7xl md:text-9xl font-bold text-white text-center">
-        Agartha remix
-        </h1>
+        <TypewriterEffectSmooth words={words}/>
       </div>
 
       <div ref={textContainer} className="absolute inset-0 z-20 pointer-events-none">

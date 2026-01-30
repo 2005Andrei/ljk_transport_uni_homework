@@ -60,11 +60,14 @@ export default function UserProfile() {
     const loadData = async () => {
       try {
         const profile = await AuthAPI.getProfile();
+        const isStaff = profile.is_staff;
+        
+        const costMultiplier = isStaff ? 1 : 0.25;
+
         setUserData(profile);
 
         const shipments = await transportService.list();
-        
-        const total = shipments.reduce((acc: number, curr: any) => acc + (parseFloat(curr.cost) || 0), 0);
+        const total = shipments.reduce((acc: number, curr: any) => acc + ((parseFloat(curr.cost) || 0) * costMultiplier), 0);
         setTotalSpent(total);
 
         setRecentShipments(shipments.slice(0, 2));
@@ -96,7 +99,7 @@ export default function UserProfile() {
 
             shipments.forEach((item: any) => {
                 const itemDate = new Date(item.created_at);
-                const itemCost = parseFloat(item.cost) / 4;
+                const itemCost = parseFloat(item.cost) * costMultiplier;
 
                 const bucket = last6Months.find(m => 
                     m.monthIndex === itemDate.getMonth() && 
@@ -161,7 +164,7 @@ export default function UserProfile() {
             <SidebarLink
               link={{
                 label: `${userData.first_name || "User"} ${userData.last_name || ""}`,
-                href: "#",
+                href: "/",
                 icon: (
                   <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                     {(userData.first_name?.[0] || "?").toUpperCase()}{(userData.last_name?.[0] || "").toUpperCase()}
@@ -190,7 +193,9 @@ export default function UserProfile() {
                       <CardTitle className="text-xl text-zinc-900 dark:text-zinc-100">
                         {userData.first_name} {userData.last_name}
                       </CardTitle>
-                      <CardDescription className="text-zinc-500">@{userData.username || "user"}</CardDescription>
+                      <CardDescription className="text-zinc-500">
+                        @{userData.username || (userData.is_staff ? "admin" : "user")}
+                      </CardDescription>
                     </div>
                   </CardHeader>
                   <CardContent className="grid gap-4 mt-4">
@@ -214,7 +219,7 @@ export default function UserProfile() {
                         <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">User Role</span>
                         <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                             <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                            Standard Client
+                            {userData.is_staff ? "Admin" : "Standard Client"}
                         </span>
                       </div>
                   </CardFooter>
@@ -227,9 +232,11 @@ export default function UserProfile() {
               <HoverCardWrapper>
                 <Card className="h-full flex flex-col justify-center bg-white dark:bg-zinc-900 border border-emerald-100 dark:border-emerald-900/30 shadow-sm relative overflow-hidden">
                   <CardHeader className="pb-2 relative z-10">
-                    <CardDescription className="text-emerald-600 dark:text-emerald-400 font-bold uppercase text-xs tracking-wider">Total Spent</CardDescription>
+                    <CardDescription className="text-emerald-600 dark:text-emerald-400 font-bold uppercase text-xs tracking-wider">
+                      {userData.is_staff ? "Revenue" : "Total Spent"}
+                    </CardDescription>
                     <CardTitle className="text-4xl text-zinc-900 dark:text-white">
-                      {(totalSpent / 4).toLocaleString()} <span className="text-lg text-zinc-400 font-normal">RON</span>
+                      {totalSpent.toLocaleString()} <span className="text-lg text-zinc-400 font-normal">RON</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="relative z-10">
@@ -250,13 +257,17 @@ export default function UserProfile() {
               <HoverCardWrapper>
                 <Card className="h-full flex flex-col justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
                   <CardHeader className="pb-2">
-                    <CardDescription className="text-zinc-500 uppercase text-xs tracking-wider font-bold">Total Shipments</CardDescription>
+                    <CardDescription className="text-zinc-500 uppercase text-xs tracking-wider font-bold">
+                        {userData.is_staff ? "All Shipments" : "Total Shipments"}
+                    </CardDescription>
                     <CardTitle className="text-4xl text-zinc-900 dark:text-white">
                       {shipmentData.reduce((a, b) => a + b.shipments, 0)}
                     </CardTitle>
                   </CardHeader>
                     <CardContent>
-                    <div className="text-xs text-zinc-500">Lifetime deliveries</div>
+                    <div className="text-xs text-zinc-500">
+                        {userData.is_staff ? "Lifetime system deliveries" : "Lifetime deliveries"}
+                    </div>
                   </CardContent>
                 </Card>
               </HoverCardWrapper>
@@ -311,8 +322,8 @@ export default function UserProfile() {
             <HoverCardWrapper>
               <Card className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-zinc-900 dark:text-white">Shipment Frequency</CardTitle>
-                  <CardDescription className="text-zinc-500">Volume of deliveries over the last 6 months</CardDescription>
+                  <CardTitle className="text-zinc-900 dark:text-white">Nr. Transporturi in timp</CardTitle>
+                  <CardDescription className="text-zinc-500">Volumul de transporturi in ultimele 6 luni</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={shipmentConfig} className="min-h-[200px] w-full">
@@ -348,8 +359,10 @@ export default function UserProfile() {
             <HoverCardWrapper>
                <Card className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-zinc-900 dark:text-white">Spending Analysis</CardTitle>
-                  <CardDescription className="text-zinc-500">Monthly cost breakdown</CardDescription>
+                  <CardTitle className="text-zinc-900 dark:text-white">
+                      {userData.is_staff ? "Analiza Veniturilor" : "Costuri"}
+                  </CardTitle>
+                  <CardDescription className="text-zinc-500">Consturile lunare</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ChartContainer config={costConfig} className="min-h-[200px] w-full">
@@ -387,7 +400,7 @@ export default function UserProfile() {
 
 
 export const Logo = () => (
-  <a href="#" className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black">
+  <a href="/" className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black">
     <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
     <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-medium whitespace-pre text-black dark:text-white">
     LJK Transport
@@ -395,9 +408,10 @@ export const Logo = () => (
   </a>
 );
 
+
 export const LogoIcon = () => (
-  <a href="#" className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black">
-    <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white" />
+  <a href="/" className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black">
+    <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black dark:bg-white text-black"></div>
   </a>
 );
 

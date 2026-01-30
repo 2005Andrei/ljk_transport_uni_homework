@@ -11,7 +11,10 @@ import {
   IconCalendar,
   IconPackage,
   IconCurrencyEuro,
-  IconCalendarPlus
+  IconCalendarPlus,
+  IconCheck,
+  IconLoader2,
+  IconPhone
 } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import { HoverEffect } from "@/components/ui/card-hover-effect";
@@ -34,6 +37,8 @@ interface Shipment {
   destination: string;
   cost: number;
   content: string;
+  status: number;
+  phone_number: string,
   details: {
     distance_km: number;
     is_local: boolean;
@@ -70,6 +75,7 @@ export default function Profile() {
     const fetchData = async () => {
       try {
         const profileData = await AuthAPI.getProfile();
+        console.log(profileData.is_staff);
         setUserData(profileData);
       } catch (e) {
         console.error("Failed to load profile:", e);
@@ -87,6 +93,8 @@ export default function Profile() {
           destination: item.destination,
           cost: parseFloat(item.cost),
           content: item.content || "Standard Cargo",
+          status: item.status,
+          phone_number: item.phone_number,
           details: {
             distance_km: item.distance, 
             is_local: item.pickup.split(",").pop()?.trim() === item.destination.split(",").pop()?.trim(),
@@ -160,6 +168,7 @@ export default function Profile() {
     ),
     link: `#shipment-${s.id}`,
     id: s.id,
+    status: s.status,
     onClick: () => setSelectedShipment(s),
   }));
 
@@ -203,7 +212,8 @@ export default function Profile() {
       <ShipmentSheet 
         shipment={selectedShipment} 
         isOpen={!!selectedShipment} 
-        onClose={(open) => !open && setSelectedShipment(null)} 
+        onClose={(open) => !open && setSelectedShipment(null)}
+        isStaff={userData?.is_staff || false}
       />
 
     </div>
@@ -211,29 +221,63 @@ export default function Profile() {
 }
 
 const Dashboard = ({ projects, hasShipments, onSelectShipment }: { projects: any[]; hasShipments: boolean, onSelectShipment: (id: number) => void }) => {
+  
+  const activeProjects = projects.filter(p => p.status !== 0);
+  const pastProjects = projects.filter(p => p.status === 0);
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex h-full flex-col overflow-y-auto rounded-tl-2xl bg-white p-8 md:p-12 dark:bg-neutral-900">
         <div className="max-w-7xl mx-auto w-full">
-          <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">Istoric Transport</h1>
-          <p className="mt-2 text-lg text-neutral-600 dark:text-neutral-400">
-            {hasShipments
-              ? `Aveti ${projects.length} urmatoarele transporturi: ${projects.length > 1 ? "s" : ""}`
-              : "No shipments yet"}
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">Transporturi</h1>
         </div>
 
         <div className="w-full">
           {hasShipments ? (
-            <div className="mx-auto max-w-7xl" onClick={(e) => {
+            <div className="mx-auto max-w-7xl space-y-8" onClick={(e) => {
               const target = (e.target as HTMLElement).closest('a');
               if (target && target.getAttribute('href')?.startsWith('#shipment-')) {
-                 e.preventDefault(); // Stop the hash navigation
+                 e.preventDefault();
                  const id = parseInt(target.getAttribute('href')?.split('-')[1] || '0');
                  onSelectShipment(id);
               }
             }}>
-              <HoverEffect items={projects} />
+              
+              {activeProjects.length > 0 && (
+                <div>
+                   <h2 className="mt-8 text-xl font-semibold text-neutral-800 dark:text-neutral-200 mb-4 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                    In Transit
+                   </h2>
+                   <HoverEffect items={activeProjects} />
+                </div>
+              )}
+
+              {pastProjects.length > 0 && (
+                <div>
+                  {activeProjects.length > 0 && (
+                    <div className="relative py-8">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-neutral-200 dark:border-neutral-800" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase tracking-wider">
+                        <span className="bg-white dark:bg-neutral-900 px-4 text-neutral-500">
+                          Past Shipments
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {activeProjects.length === 0 && (
+                     <h2 className="mt-8 text-xl font-semibold text-neutral-800 dark:text-neutral-200 mb-4">
+                        Past Shipments
+                     </h2>
+                  )}
+
+                  <HoverEffect items={pastProjects} />
+                </div>
+              )}
+
             </div>
           ) : (
             <div className="flex flex-1 items-center justify-center py-24">
@@ -265,25 +309,41 @@ export const LogoIcon = () => (
   </a>
 );
 
-
 const ShipmentSheet = ({ 
   shipment, 
   isOpen, 
-  onClose 
+  onClose,
+  isStaff
 }: { 
   shipment: Shipment | null, 
   isOpen: boolean, 
-  onClose: (open: boolean) => void 
+  onClose: (open: boolean) => void,
+  isStaff: boolean
 }) => {
+  const [loading, setLoading] = useState(false);
+
   if (!shipment) return null;
 
-  const isDelivered = new Date(shipment.details.date) < new Date();
+  const isDelivered = shipment.status === 0;
+
+  const handleMarkAsDelivered = async () => {
+    try {
+      setLoading(true);
+      await transportService.mark_as_delivered(shipment.id);
+      shipment.status = 0; 
+      onClose(false); 
+    } catch (error) {
+      console.error("Failed to update shipment status", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="flex flex-col h-full w-full sm:max-w-xl bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 p-0 shadow-2xl">
         
-        <SheetHeader className="p-6 mb-0 mt-4 border-b border-zinc-100 dark:border-zinc-800">
+        <SheetHeader className="p-6 mb-0 mt-8 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-2xl font-bold flex items-center gap-2 text-black dark:text-white">
               <IconPackage className="h-6 w-6 text-emerald-500" />
@@ -291,10 +351,10 @@ const ShipmentSheet = ({
             </SheetTitle>
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
               isDelivered 
-                ? "mt-7 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" 
                 : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
             }`}>
-              {isDelivered ? "In Transit" : "Delivered"}
+              {isDelivered ? "Delivered" : "In Transit"}
             </span>
           </div>
           <SheetDescription>
@@ -345,11 +405,38 @@ const ShipmentSheet = ({
               </div>
               <p className="text-md font-medium text-black dark:text-white">{shipment.content}</p>
             </div>
+
+            {isStaff && (
+              <div className="space-y-1 col-span-2">
+                <div className="flex items-center gap-2 text-zinc-500 text-sm">
+                  <IconUserBolt className="h-4 w-4" /> Client Contact
+                </div>
+                <p className="text-md font-medium text-black dark:text-white">
+                  {shipment.phone_number || "No phone number available"}
+                </p>
+              </div>
+            )}
           </div>
         </div> 
 
+        <SheetFooter className="flex flex-col gap-4 p-6 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+          {isStaff && !isDelivered && (
+             <div className="w-full">
+               <button
+                 disabled={loading}
+                 onClick={handleMarkAsDelivered}
+                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+               >
+                 {loading ? (
+                   <IconLoader2 className="h-5 w-5 animate-spin" />
+                 ) : (
+                   <IconCheck className="h-5 w-5" />
+                 )}
+                 Mark as Delivered
+               </button>
+             </div>
+          )}
 
-        <SheetFooter className="p-6 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
           <div className="w-full bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg text-sm text-zinc-500 flex flex-col gap-1">
             <p className="font-semibold text-black dark:text-white">Need help with this shipment?</p>
             <p>Contact support with ID <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">#{shipment.id}</span></p>

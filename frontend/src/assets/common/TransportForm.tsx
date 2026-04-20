@@ -6,6 +6,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Plus, Trash2, Truck, ArrowRight, ArrowLeft, Loader2, CheckCircle2, MapPin, AlertCircle } from "lucide-react";
 import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
+import { Home } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { CardSpotlight } from "@/components/ui/card-spotlight";
 import { Input } from "@/components/ui/input";
@@ -21,6 +23,7 @@ export default function TransportRequest() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const formatAddress = (addr: { street: string; details?: string; city: string; county: string }) => {
     const parts = [addr.street, addr.details, addr.city, addr.county].filter(Boolean);
@@ -29,7 +32,7 @@ export default function TransportRequest() {
 
   const formatContent = (items: any[]) => {
     return items.map(item => 
-      `${item.description} (${item.length}x${item.width}x${item.height}cm, ${item.weight}kg)`
+      `${item.description} (${item.length}x${item.width}x${item.height}m, ${item.weight}kg)`
     ).join("; ");
   };
 
@@ -44,7 +47,15 @@ export default function TransportRequest() {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "items" });
   const watchedValues = form.watch();
-  const stats = calculateStats(watchedValues);
+  const [stats, setStats] = useState({
+    price: 0,
+    distance: 0,
+    isLocal: false,
+    totalWeight: 0,
+    isWeightError: false,
+    fitsInSpace: true,
+    canSubmit: false
+  });
 
   const handleCalculatePrice = async () => {
     setIsCalculating(true);
@@ -53,22 +64,34 @@ export default function TransportRequest() {
     const isValid = await form.trigger(["pickup.street", "pickup.city", "pickup.county", "dropoff.street", "dropoff.city", "dropoff.county"]);
     if (!isValid) { setIsCalculating(false); return; }
 
-    const pickupCoords = await geocodeStructuredAddress(pickup.street, pickup.city, pickup.county);
+    const currentValues = form.getValues();
+
+    const pickupCoords = await geocodeStructuredAddress(currentValues.pickup.street, currentValues.pickup.city, currentValues.pickup.county);
     if (!pickupCoords) {
       setRouteError("Could not find the Pickup Address. Please check street spelling.");
       setIsCalculating(false); return;
     }
 
-    const dropoffCoords = await geocodeStructuredAddress(dropoff.street, dropoff.city, dropoff.county);
+    const dropoffCoords = await geocodeStructuredAddress(currentValues.dropoff.street, currentValues.dropoff.city, currentValues.dropoff.county);
     if (!dropoffCoords) {
       setRouteError("Could not find the Dropoff Address. Please check street spelling.");
       setIsCalculating(false); return;
     }
 
+    const dataForCalculation: TransportFormValues = {
+        ...currentValues,
+        pickup: { ...currentValues.pickup, lat: pickupCoords.lat, lng: pickupCoords.lng },
+        dropoff: { ...currentValues.dropoff, lat: dropoffCoords.lat, lng: dropoffCoords.lng }
+    };
+
+    const newStats = await calculateStats(dataForCalculation);
+
     form.setValue("pickup.lat", pickupCoords.lat);
     form.setValue("pickup.lng", pickupCoords.lng);
     form.setValue("dropoff.lat", dropoffCoords.lat);
     form.setValue("dropoff.lng", dropoffCoords.lng);
+
+    setStats(newStats);
     setIsCalculating(false);
   };
 
@@ -86,7 +109,7 @@ export default function TransportRequest() {
         cost: stats.price,
         distance: stats.distance,
       };
-      
+       
       await transportService.create(payload);
       setStep("success");
     } catch (error: any) {
@@ -107,10 +130,26 @@ export default function TransportRequest() {
   if (step === "success") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-4 text-white font-sans">
-        <div className="text-center space-y-4 max-w-md bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800">
+        <div className="text-center space-y-4 max-w-md bg-zinc-900/50 p-8 rounded-2xl border border-zinc-800 shadow-2xl">
           <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
           <h2 className="text-3xl font-bold">Request Sent!</h2>
-          <Button onClick={() => window.location.reload()} className="bg-emerald-600 hover:bg-emerald-700 w-full">New Request</Button>
+          
+          <div className="space-y-3 pt-4">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="bg-emerald-600 hover:bg-emerald-700 text-black dark:text-white w-full font-medium"
+            >
+              New Request
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate("/")} 
+              className="w-full text-black dark:text-white hover:bg-zinc-800 transition-colors"
+            >
+              <Home className="w-4 h-4 mr-0" /> Back to Home
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -121,7 +160,6 @@ export default function TransportRequest() {
       <CardSpotlight className="w-full max-w-4xl bg-zinc-950 border border-zinc-900 shadow-2xl">
         <div className="relative z-20 p-8 h-full">
           
-          {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start mb-8 border-b border-zinc-800 pb-6 gap-4">
             <div>
               <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -192,7 +230,8 @@ export default function TransportRequest() {
                               "[&_.PhoneInputCountrySelect]:bg-transparent",
                               "dark:[&_select]:bg-zinc-900 dark:[&_option]:text-white dark:[&_option]:bg-zinc-900",
                               "[&_.group\/input]:w-full",
-                              "[&_input]:bg-zinc-900 [&_input]:border-zinc-800 [&_input]:text-white"
+                              // Removed border here
+                              "[&_input]:bg-zinc-900 [&_input]:border-none [&_input]:text-white"
                             )}
                           />
                         )}
@@ -209,16 +248,18 @@ export default function TransportRequest() {
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button
+                  <Button
                       type="button"
                       onClick={async () => {
                         if (await form.trigger(["first_name", "last_name", "phone", "email"]))
                           setStep(2);
                       }}
-                      className="bg-white text-black hover:bg-zinc-200"
+                      className="bg-white text-black hover:bg-zinc-200 dark:text-white"
                     >
                       Next <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
+
+                   
                   </div>
                 </motion.div>
               )}
@@ -250,40 +291,51 @@ export default function TransportRequest() {
                     </div>
 
                     <div className="hidden md:grid grid-cols-12 gap-3 px-3 text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                      <div className="col-span-4">Description</div>
-                      <div className="col-span-2 text-center">L (cm)</div>
-                      <div className="col-span-2 text-center">W (cm)</div>
-                      <div className="col-span-2 text-center">H (cm)</div>
+                      <div className="col-span-3">Description</div>
+                      <div className="col-span-2 text-center">L (m)</div>
+                      <div className="col-span-2 text-center">W (m)</div>
+                      <div className="col-span-2 text-center">H (m)</div>
                       <div className="col-span-2 text-center">Weight (kg)</div>
                     </div>
 
                     <div className="space-y-3">
                       {fields.map((field, index) => (
                         <div key={field.id} className="relative grid grid-cols-1 md:grid-cols-12 gap-3 items-start bg-zinc-900/30 p-3 rounded-lg border border-zinc-800">
-                          <div className="md:col-span-4">
+                          <div className="md:col-span-3">
                             <Label className="md:hidden text-xs text-zinc-500 mb-1 block">Description</Label>
-                            <Input {...form.register(`items.${index}.description`)} placeholder="e.g. Box of Books" className="bg-zinc-950 border-zinc-700 focus:border-emerald-500/50" />
+                            {/* Removed border */}
+                            <Input {...form.register(`items.${index}.description`)} placeholder="e.g. Box of Books" className="bg-zinc-950 border-none focus:border-emerald-500/50 text-white" />
                           </div>
-                          <div className="grid grid-cols-4 gap-2 md:contents">
+                          <div className="grid grid-cols-2 gap-2 md:contents">
                             <div className="md:col-span-2">
                                <Label className="md:hidden text-xs text-zinc-500 mb-1 block text-center">L</Label>
-                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.length`)} className="bg-zinc-950 border-zinc-700 text-center" />
+                               {/* Removed border */}
+                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.length`)} className="bg-zinc-950 border-none text-center text-white" />
                             </div>
                             <div className="md:col-span-2">
                                <Label className="md:hidden text-xs text-zinc-500 mb-1 block text-center">W</Label>
-                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.width`)} className="bg-zinc-950 border-zinc-700 text-center" />
+                               {/* Removed border */}
+                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.width`)} className="bg-zinc-950 border-none text-center text-white" />
                             </div>
                             <div className="md:col-span-2">
                                <Label className="md:hidden text-xs text-zinc-500 mb-1 block text-center">H</Label>
-                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.height`)} className="bg-zinc-950 border-zinc-700 text-center" />
+                               {/* Removed border */}
+                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.height`)} className="bg-zinc-950 border-none text-center text-white" />
                             </div>
                             <div className="md:col-span-2">
                                <Label className="md:hidden text-xs text-zinc-500 mb-1 block text-center">Kg</Label>
-                               <Input type="number" step="0.1" placeholder="0" {...form.register(`items.${index}.weight`)} className="bg-zinc-950 border-zinc-700 text-center font-bold text-emerald-500" />
+                               {/* Removed border */}
+                               <Input 
+                                 type="number" 
+                                 step="0.1" 
+                                 placeholder="0" 
+                                 {...form.register(`items.${index}.weight`)} 
+                                 className="bg-zinc-950 border-none text-center font-bold text-white" 
+                               />
                             </div>
                           </div>
                           {fields.length > 1 && (
-                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="absolute -top-2 -right-2 md:top-auto md:right-auto md:relative md:col-span-0 h-6 w-6 md:h-10 md:w-8 md:translate-x-2 bg-zinc-800 md:bg-transparent rounded-full text-zinc-400 hover:text-red-500 hover:bg-zinc-800">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="absolute -top-2 -right-2 md:top-auto md:right-auto md:relative md:col-span-1 h-6 w-6 md:h-10 md:w-8 md:translate-x-2 !bg-zinc-800 md:bg-transparent rounded-full text-zinc-400 hover:text-red-500 hover:bg-zinc-800 flex justify-center items-center">
                               <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
                             </Button>
                           )}
@@ -291,20 +343,20 @@ export default function TransportRequest() {
                       ))}
                     </div>
 
-                    <Button type="button" variant="outline" size="sm" onClick={() => append({ description: "", length: 0, width: 0, height: 0, weight: 0 })} className="w-full border-dashed border-zinc-800 hover:bg-zinc-900 text-zinc-500 hover:text-white mt-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => append({ description: "", length: 0, width: 0, height: 0, weight: 0 })} className="w-full border-dashed border-zinc-800 hover:bg-zinc-900 text-zinc-500 hover:text-white mt-2 !bg-zinc-900">
                       <Plus className="w-4 h-4 mr-2" /> Add Another Item
                     </Button>
                   </div>
 
                   <div className="flex flex-col md:flex-row justify-between pt-6 border-t border-zinc-800 gap-4">
-                    <Button type="button" variant="ghost" onClick={() => setStep(1)} className="text-zinc-400 hover:text-white order-2 md:order-1">
+                    <Button type="button" variant="ghost" onClick={() => setStep(1)} className="text-zinc-400 hover:text-white order-2 md:order-1 !bg-zinc-950">
                       <ArrowLeft className="mr-2 w-4 h-4" /> Back
                     </Button>
                     <div className="flex gap-3 order-1 md:order-2 w-full md:w-auto">
-                      <Button type="button" variant="secondary" onClick={handleCalculatePrice} disabled={isCalculating} className="flex-1 md:flex-none bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700">
+                      <Button type="button" variant="secondary" onClick={handleCalculatePrice} disabled={isCalculating} className="flex-1 md:flex-none bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 !bg-zinc-900">
                         {isCalculating ? <Loader2 className="animate-spin w-4 h-4" /> : "Verify & Calculate Price"}
                       </Button>
-                      <Button type="submit" disabled={!stats.canSubmit || isSubmitting || stats.price === 0} className={cn("flex-1 md:flex-none min-w-[150px]", stats.canSubmit && stats.price > 0 ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-zinc-800 text-zinc-500 cursor-not-allowed")}>
+                      <Button type="submit" disabled={!stats.canSubmit || isSubmitting || stats.price === 0} className={cn("flex-1 md:flex-none min-w-[150px]", stats.canSubmit && stats.price > 0 ? "dark:text-white text-black" : "!bg-zinc-600 text-black cursor-not-allowed")}>
                         {isSubmitting ? <Loader2 className="animate-spin w-4 h-4" /> : "Confirm Order"}
                       </Button>
                     </div>
@@ -322,7 +374,7 @@ export default function TransportRequest() {
 const FormInput = ({ label, reg, error, ...props }: any) => (
   <div className="space-y-1">
     <Label className={error ? "text-red-500" : "text-zinc-400"}>{label}</Label>
-    <Input {...reg} {...props} className="bg-zinc-900 border-zinc-800 text-white" />
+    <Input {...reg} {...props} className="bg-zinc-900 border-none text-white" />
     {error && <span className="text-xs text-red-500">{error.message}</span>}
   </div>
 );
@@ -337,22 +389,26 @@ const AddressSection = ({ form, type, title }: { form: UseFormReturn<TransportFo
       <div className="space-y-3">
         <div className="space-y-1">
           <Label className="text-xs text-zinc-500">Street & Number Only</Label>
-          <Input {...form.register(`${type}.street`)} placeholder="e.g. Calea București 33" className="bg-zinc-950 border-zinc-800 focus:border-emerald-500/50 transition-colors" />
+          {/* Removed border */}
+          <Input {...form.register(`${type}.street`)} placeholder="e.g. Calea București 33" className="bg-zinc-950 border-none focus:border-emerald-500/50 transition-colors text-white" />
           {errors?.street ? <span className="text-xs text-red-500">{errors.street.message}</span> : <p className="text-[10px] text-zinc-600">Do not include Scara/Etaj/Ap here.</p>}
         </div>
         <div className="space-y-1">
           <Label className="text-xs text-zinc-500">Additional Details (Optional)</Label>
-          <Input {...form.register(`${type}.details`)} placeholder="e.g. Bl. 10, Sc. B, Et. 4, Ap. 12" className="bg-zinc-950 border-zinc-800 placeholder:text-zinc-700" />
+          {/* Removed border */}
+          <Input {...form.register(`${type}.details`)} placeholder="e.g. Bl. 10, Sc. B, Et. 4, Ap. 12" className="bg-zinc-950 border-none placeholder:text-zinc-700 text-white" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <Label className="text-xs text-zinc-500">City</Label>
-            <Input {...form.register(`${type}.city`)} placeholder="Brasov" className="bg-zinc-950 border-zinc-800" />
+            {/* Removed border */}
+            <Input {...form.register(`${type}.city`)} placeholder="Brasov" className="bg-zinc-950 border-none text-white" />
             {errors?.city && <span className="text-xs text-red-500">{errors.city.message}</span>}
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-zinc-500">County</Label>
-            <Input {...form.register(`${type}.county`)} placeholder="Brașov" className="bg-zinc-950 border-zinc-800" />
+            {/* Removed border */}
+            <Input {...form.register(`${type}.county`)} placeholder="Brașov" className="bg-zinc-950 border-none text-white" />
             {errors?.county && <span className="text-xs text-red-500">{errors.county.message}</span>}
           </div>
         </div>

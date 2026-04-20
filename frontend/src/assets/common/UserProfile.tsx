@@ -164,7 +164,7 @@ export default function UserProfile() {
             <SidebarLink
               link={{
                 label: `${userData.first_name || "User"} ${userData.last_name || ""}`,
-                href: "/",
+                href: "/profile",
                 icon: (
                   <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
                     {(userData.first_name?.[0] || "?").toUpperCase()}{(userData.last_name?.[0] || "").toUpperCase()}
